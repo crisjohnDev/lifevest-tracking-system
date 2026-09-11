@@ -1,17 +1,20 @@
 import json
-
+from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import GPSLocation
 
 
+def gps_dashboard(request):
+
+    return render(
+        request,
+        "gps/dashboard.html"
+    )
+
 @csrf_exempt
 def gps_update(request):
-
-    # =====================================================
-    # ONLY POST IS ALLOWED
-    # =====================================================
 
     if request.method != "POST":
 
@@ -22,10 +25,6 @@ def gps_update(request):
             },
             status=405
         )
-
-    # =====================================================
-    # READ JSON
-    # =====================================================
 
     try:
 
@@ -43,12 +42,7 @@ def gps_update(request):
             status=400
         )
 
-    # =====================================================
-    # GET DATA
-    # =====================================================
-
     latitude = data.get("latitude")
-
     longitude = data.get("longitude")
 
     satellites = data.get(
@@ -71,10 +65,6 @@ def gps_update(request):
         0
     )
 
-    # =====================================================
-    # REQUIRED DATA
-    # =====================================================
-
     if latitude is None:
 
         return JsonResponse(
@@ -94,10 +84,6 @@ def gps_update(request):
             },
             status=400
         )
-
-    # =====================================================
-    # SAVE GPS DATA
-    # =====================================================
 
     try:
 
@@ -126,14 +112,9 @@ def gps_update(request):
             status=500
         )
 
-    # =====================================================
-    # RESPONSE
-    # =====================================================
-
     return JsonResponse(
         {
             "success": True,
-
             "message": "GPS data received",
 
             "id": location.id,
@@ -159,4 +140,66 @@ def gps_update(request):
             )
         },
         status=201
+    )
+
+
+# =========================================================
+# LATEST GPS
+# =========================================================
+
+def gps_latest(request):
+
+    if request.method != "GET":
+
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "GET request required"
+            },
+            status=405
+        )
+
+    location = (
+        GPSLocation.objects
+        .order_by("-created_at")
+        .first()
+    )
+
+    if location is None:
+
+        return JsonResponse(
+            {
+                "success": True,
+                "available": False,
+                "message": "No GPS data available"
+            }
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "available": True,
+
+            "id": location.id,
+
+            "latitude": float(
+                location.latitude
+            ),
+
+            "longitude": float(
+                location.longitude
+            ),
+
+            "satellites": location.satellites,
+
+            "gps_valid": location.gps_valid,
+
+            "rssi": location.rssi,
+
+            "snr": location.snr,
+
+            "created_at": (
+                location.created_at.isoformat()
+            )
+        }
     )

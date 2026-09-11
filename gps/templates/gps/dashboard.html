@@ -1,0 +1,975 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Life Vest GPS Monitor</title>
+
+    <!-- =====================================================
+         LEAFLET CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            background: #f3f5f8;
+            color: #111827;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        /* =====================================================
+           MAIN
+        ====================================================== */
+
+        .dashboard {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* =====================================================
+           SIDEBAR
+        ====================================================== */
+
+        .sidebar {
+            width: 360px;
+            min-width: 360px;
+            background: #ffffff;
+            border-right: 1px solid #dfe3e8;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        /* =====================================================
+           HEADER
+        ====================================================== */
+
+        .header {
+            padding: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .system-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+            color: #111827;
+        }
+
+        .system-subtitle {
+            margin-top: 6px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        /* =====================================================
+           STATUS
+        ====================================================== */
+
+        .status-section {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .status-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+        }
+
+        .status-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border: 1px solid #e5e7eb;
+            background: #fafafa;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #9ca3af;
+        }
+
+        .status-indicator.online {
+            background: #16a34a;
+            box-shadow:
+                0 0 0 4px rgba(
+                    22,
+                    163,
+                    74,
+                    0.12
+                );
+        }
+
+        .status-indicator.offline {
+            background: #dc2626;
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* =====================================================
+           INFORMATION
+        ====================================================== */
+
+        .info-section {
+            padding: 20px 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 14px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-card {
+            border: 1px solid #e5e7eb;
+            padding: 14px;
+            background: #ffffff;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-size: 11px;
+            margin-bottom: 7px;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-size: 17px;
+            font-weight: 700;
+            color: #111827;
+            word-break: break-word;
+        }
+
+        .info-value.small {
+            font-size: 13px;
+        }
+
+        /* =====================================================
+           LAST UPDATE
+        ====================================================== */
+
+        .last-update {
+            margin-top: 16px;
+            border: 1px solid #e5e7eb;
+            padding: 14px;
+            background: #fafafa;
+        }
+
+        .last-update-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .last-update-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* =====================================================
+           MAP
+        ====================================================== */
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* =====================================================
+           MAP STATUS
+        ====================================================== */
+
+        .map-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            background: #ffffff;
+            border: 1px solid #dfe3e8;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow:
+                0 4px 14px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.12
+                );
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ====================================================== */
+
+        @media (
+            max-width: 800px
+        ) {
+
+            .dashboard {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                min-width: 100%;
+                height: 42vh;
+                border-right: none;
+                border-bottom: 1px solid #dfe3e8;
+            }
+
+            .map-container {
+                height: 58vh;
+            }
+
+            body {
+                overflow: auto;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="header">
+
+            <h1 class="system-title">
+                Life Vest GPS Monitor
+            </h1>
+
+            <div class="system-subtitle">
+                Real-time location monitoring
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             STATUS
+        ================================================== -->
+
+        <div class="status-section">
+
+            <div class="status-title">
+                System Status
+            </div>
+
+            <div class="status-box">
+
+                <div class="status-left">
+
+                    <span
+                        id="statusIndicator"
+                        class="status-indicator"
+                    ></span>
+
+                    <span
+                        id="statusText"
+                        class="status-text"
+                    >
+                        Waiting for GPS
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             GPS INFORMATION
+        ================================================== -->
+
+        <div class="info-section">
+
+            <div class="section-title">
+                GPS Information
+            </div>
+
+            <div class="info-grid">
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        Latitude
+                    </div>
+
+                    <div
+                        id="latitude"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        Longitude
+                    </div>
+
+                    <div
+                        id="longitude"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        Satellites
+                    </div>
+
+                    <div
+                        id="satellites"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        GPS Valid
+                    </div>
+
+                    <div
+                        id="gpsValid"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        LoRa RSSI
+                    </div>
+
+                    <div
+                        id="rssi"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <div class="info-card">
+
+                    <div class="info-label">
+                        LoRa SNR
+                    </div>
+
+                    <div
+                        id="snr"
+                        class="info-value"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =============================================
+                 LAST UPDATE
+            ============================================== -->
+
+            <div class="last-update">
+
+                <div class="last-update-label">
+                    Last GPS Update
+                </div>
+
+                <div
+                    id="lastUpdate"
+                    class="last-update-value"
+                >
+                    Waiting for data...
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAP
+    ====================================================== -->
+
+    <main class="map-container">
+
+        <div
+            id="mapStatus"
+            class="map-status"
+        >
+            Waiting for GPS location
+        </div>
+
+        <div id="map"></div>
+
+    </main>
+
+</div>
+
+
+<!-- =========================================================
+     LEAFLET JS
+========================================================== -->
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+></script>
+
+
+<script>
+
+    // ========================================================
+    // API
+    // ========================================================
+
+    const GPS_API =
+        "{% url 'gps_latest' %}";
+
+
+    // ========================================================
+    // MAP
+    // ========================================================
+
+    const DEFAULT_LATITUDE = 13.027361;
+
+    const DEFAULT_LONGITUDE = 123.448982;
+
+
+    const map = L.map(
+        "map"
+    ).setView(
+        [
+            DEFAULT_LATITUDE,
+            DEFAULT_LONGITUDE
+        ],
+        15
+    );
+
+
+    // ========================================================
+    // OPENSTREETMAP
+    // ========================================================
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+
+            attribution:
+                '&copy; OpenStreetMap contributors'
+        }
+    ).addTo(map);
+
+
+    // ========================================================
+    // GPS MARKER
+    // ========================================================
+
+    let gpsMarker = null;
+
+    let accuracyCircle = null;
+
+    let firstLocation = true;
+
+
+    // ========================================================
+    // CUSTOM MARKER
+    // ========================================================
+
+    const gpsIcon = L.divIcon({
+
+        className: "",
+
+        html: `
+            <div style="
+                width: 22px;
+                height: 22px;
+                background: #dc2626;
+                border: 4px solid white;
+                border-radius: 50%;
+                box-shadow:
+                    0 2px 8px
+                    rgba(0,0,0,0.35);
+            "></div>
+        `,
+
+        iconSize: [
+            22,
+            22
+        ],
+
+        iconAnchor: [
+            11,
+            11
+        ]
+
+    });
+
+
+    // ========================================================
+    // DOM ELEMENTS
+    // ========================================================
+
+    const latitudeElement =
+        document.getElementById(
+            "latitude"
+        );
+
+    const longitudeElement =
+        document.getElementById(
+            "longitude"
+        );
+
+    const satellitesElement =
+        document.getElementById(
+            "satellites"
+        );
+
+    const gpsValidElement =
+        document.getElementById(
+            "gpsValid"
+        );
+
+    const rssiElement =
+        document.getElementById(
+            "rssi"
+        );
+
+    const snrElement =
+        document.getElementById(
+            "snr"
+        );
+
+    const lastUpdateElement =
+        document.getElementById(
+            "lastUpdate"
+        );
+
+    const statusIndicator =
+        document.getElementById(
+            "statusIndicator"
+        );
+
+    const statusText =
+        document.getElementById(
+            "statusText"
+        );
+
+    const mapStatus =
+        document.getElementById(
+            "mapStatus"
+        );
+
+
+    // ========================================================
+    // UPDATE DASHBOARD
+    // ========================================================
+
+    function updateDashboard(
+        data
+    ) {
+
+        if (
+            !data.success ||
+            !data.available
+        ) {
+
+            setOfflineState();
+
+            return;
+        }
+
+
+        // ====================================================
+        // DATA
+        // ====================================================
+
+        const latitude =
+            Number(
+                data.latitude
+            );
+
+        const longitude =
+            Number(
+                data.longitude
+            );
+
+
+        // ====================================================
+        // CHECK COORDINATES
+        // ====================================================
+
+        if (
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude)
+        ) {
+
+            setOfflineState();
+
+            return;
+        }
+
+
+        // ====================================================
+        // UPDATE INFORMATION
+        // ====================================================
+
+        latitudeElement.textContent =
+            latitude.toFixed(6);
+
+        longitudeElement.textContent =
+            longitude.toFixed(6);
+
+        satellitesElement.textContent =
+            data.satellites;
+
+        gpsValidElement.textContent =
+            data.gps_valid
+                ? "YES"
+                : "NO";
+
+        rssiElement.textContent =
+            data.rssi + " dBm";
+
+        snrElement.textContent =
+            Number(
+                data.snr
+            ).toFixed(2) + " dB";
+
+
+        // ====================================================
+        // STATUS
+        // ====================================================
+
+        if (data.gps_valid) {
+
+            statusIndicator.className =
+                "status-indicator online";
+
+            statusText.textContent =
+                "GPS ONLINE";
+
+            mapStatus.textContent =
+                "Live GPS location";
+
+        } else {
+
+            statusIndicator.className =
+                "status-indicator offline";
+
+            statusText.textContent =
+                "GPS INVALID";
+
+            mapStatus.textContent =
+                "GPS signal invalid";
+        }
+
+
+        // ====================================================
+        // LAST UPDATE
+        // ====================================================
+
+        if (data.created_at) {
+
+            const date =
+                new Date(
+                    data.created_at
+                );
+
+            lastUpdateElement.textContent =
+                date.toLocaleString();
+        }
+
+
+        // ====================================================
+        // UPDATE MAP
+        // ====================================================
+
+        updateMap(
+            latitude,
+            longitude
+        );
+    }
+
+
+    // ========================================================
+    // UPDATE MAP
+    // ========================================================
+
+    function updateMap(
+        latitude,
+        longitude
+    ) {
+
+        const position = [
+            latitude,
+            longitude
+        ];
+
+
+        // ====================================================
+        // CREATE MARKER
+        // ====================================================
+
+        if (!gpsMarker) {
+
+            gpsMarker =
+                L.marker(
+                    position,
+                    {
+                        icon: gpsIcon
+                    }
+                ).addTo(map);
+
+            gpsMarker.bindPopup(
+                `
+                <strong>Life Vest GPS</strong>
+                <br>
+                Latitude:
+                ${latitude.toFixed(6)}
+                <br>
+                Longitude:
+                ${longitude.toFixed(6)}
+                `
+            );
+
+        } else {
+
+            gpsMarker.setLatLng(
+                position
+            );
+
+            gpsMarker.setPopupContent(
+                `
+                <strong>Life Vest GPS</strong>
+                <br>
+                Latitude:
+                ${latitude.toFixed(6)}
+                <br>
+                Longitude:
+                ${longitude.toFixed(6)}
+                `
+            );
+        }
+
+
+        // ====================================================
+        // CENTER MAP
+        // ====================================================
+
+        if (firstLocation) {
+
+            map.setView(
+                position,
+                17
+            );
+
+            firstLocation = false;
+
+        } else {
+
+            map.panTo(
+                position,
+                {
+                    animate: true,
+                    duration: 0.5
+                }
+            );
+        }
+    }
+
+
+    // ========================================================
+    // OFFLINE STATE
+    // ========================================================
+
+    function setOfflineState() {
+
+        statusIndicator.className =
+            "status-indicator offline";
+
+        statusText.textContent =
+            "NO GPS DATA";
+
+        mapStatus.textContent =
+            "Waiting for GPS location";
+    }
+
+
+    // ========================================================
+    // FETCH GPS
+    // ========================================================
+
+    async function fetchGPS() {
+
+        try {
+
+            const response =
+                await fetch(
+                    GPS_API,
+                    {
+                        method: "GET",
+
+                        cache: "no-store",
+
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "HTTP " +
+                    response.status
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            updateDashboard(
+                data
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "GPS request failed:",
+                error
+            );
+
+            setOfflineState();
+        }
+    }
+
+
+    // ========================================================
+    // FIRST REQUEST
+    // ========================================================
+
+    fetchGPS();
+
+
+    // ========================================================
+    // REAL-TIME POLLING
+    //
+    // Every 2 seconds
+    // ========================================================
+
+    setInterval(
+        fetchGPS,
+        2000
+    );
+
+</script>
+
+</body>
+
+</html>
